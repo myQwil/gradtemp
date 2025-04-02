@@ -90,8 +90,11 @@ const ColorSched = struct {
 	}
 };
 
-fn getState() !bool {
-	const path = "/tmp/gradtemp_state";
+fn getState(mem: Allocator) !bool {
+	const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
+	const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp/state" });
+	defer mem.free(path);
+
 	const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
 	defer file.close();
 
@@ -146,7 +149,7 @@ pub fn main() !void {
 	}
 
 	const identity: u15 = 6500;
-	const on: bool = getState() catch true;
+	const on: bool = getState(mem) catch true;
 	const temp: u15 = if (on) sched.at(try getHour()) else identity;
 	const bulb: []const u8 = if (on) "󰌵" else "󰌶";
 
