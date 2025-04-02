@@ -46,13 +46,10 @@ const Config = struct {
 
 	fn init(mem: Allocator) !Config {
 		const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
-		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp" });
+		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp/config.json" });
 		defer mem.free(path);
 
-		var dir = try std.fs.cwd().openDir(path, .{});
-		defer dir.close();
-
-		const file = try dir.openFile("config.json", .{ .mode = .read_only });
+		const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
 		defer file.close();
 
 		const contents = try file.readToEndAlloc(mem, 1024 * 1024); // 1MB max
