@@ -1,4 +1,5 @@
 const std = @import("std");
+const cmn = @import("common.zig");
 
 const filename = "state";
 
@@ -28,10 +29,14 @@ pub fn main() !void {
 	};
 	defer dir.close();
 
-	const on: bool = getState(dir) catch true;
+	const on: bool = !(getState(dir) catch true);
 	const file = dir.openFile(filename, .{ .mode = .write_only })
 		catch try dir.createFile(filename, .{});
 	defer file.close();
 
-	_ = try file.writer().writeByte(@as(u8, @intFromBool(!on)) + '0');
+	_ = try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
+
+	if (!on) {
+		try cmn.run(&.{ "hyprctl", "hyprsunset", "identity" }, mem);
+	}
 }

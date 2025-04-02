@@ -1,4 +1,5 @@
 const std = @import("std");
+const cmn = @import("common.zig");
 const c = @cImport({
 	@cInclude("time.h");
 });
@@ -108,12 +109,6 @@ fn getHour() !f32 {
 	return hour + (minute / 60) + (second / (60 * 60));
 }
 
-const Waybar = struct {
-	text: []const u8,
-	class: []const u8,
-	tooltip: []const u8,
-};
-
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer switch (gpa.deinit()) {
@@ -147,54 +142,24 @@ pub fn main() !void {
 		return;
 	}
 
-	const identity: u15 = 6500;
 	const on: bool = getState(mem) catch true;
-	const temp: u15 = if (on) sched.at(try getHour()) else identity;
-	const bulb: []const u8 = if (on) "󰌵" else "󰌶";
-
-	var buf: [11]u8 = undefined;
-	const s_temp = try std.fmt.bufPrint(&buf, "{s} {}", .{ bulb, temp });
-
-	var cmd: std.ArrayList([]const u8) = .init(mem);
-	defer cmd.deinit();
-
-	try cmd.appendSlice(&.{ "hyprctl", "hyprsunset" });
-	if (temp == identity) {
-		try cmd.append("identity");
-	} else {
-		try cmd.appendSlice(&.{ "temperature", s_temp[bulb.len + 1..] });
+	if (!on) {
+		return cmn.send(.inactive);
 	}
 
-	var process = std.process.Child.init(cmd.items, mem);
-	process.stdout_behavior = .Ignore;
-	process.stderr_behavior = .Ignore;
-	_ = try process.spawn();
-	_ = try process.wait();
+	const temp: u15 = sched.at(try getHour());
+	var buf: [11]u8 = undefined;
+	const text = try std.fmt.bufPrint(&buf, "󰌵 {}", .{ temp });
+	try cmn.run(&.{ "hyprctl", "hyprsunset", "temperature", text[5..] }, mem);
 
-	const class: []const u8 = if (temp < 2300)
-		"candle"
-	else if (temp < 3900)
-		"warm"
-	else if (temp < 5500)
-		"neutral"
-	else
-		"cool";
+	const class: []const u8 = if (temp < 2300) "candle"
+	else if (temp < 3900) "warm"
+	else if (temp < 5500) "neutral"
+	else "cool";
 
 	var ttip: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(&ttip, "Blue light filter: {}K ({s})", .{
-		temp,
-		if (on) class else "off",
+		temp, class,
 	});
-
-	const stdout_file = std.io.getStdOut().writer();
-	var bw = std.io.bufferedWriter(stdout_file);
-	const stdout = bw.writer();
-
-	_ = try std.json.stringify(Waybar{
-		.text = s_temp,
-		.class = class,
-		.tooltip = tooltip,
-	}, .{ .escape_unicode = true }, stdout);
-
-	try bw.flush();
+	try cmn.send(cmn.Waybar{ .text = text, .class = class, .tooltip = tooltip });
 }
