@@ -110,15 +110,12 @@ fn getHour() !f32 {
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer switch (gpa.deinit()) {
-		.leak => {}, // std.debug.print("Memory leaks detected!\n", .{}),
-		.ok => {}, // std.debug.print("No memory leaks detected.\n", .{}),
+		.leak => std.debug.print("Memory leaks detected!\n", .{}),
+		.ok => {},
 	};
 	const mem = gpa.allocator();
 
-	const sched: ColorSched = blk: {
-		const cfg: Config = Config.init(mem) catch .{};
-		break :blk .init(&cfg);
-	};
+	const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
 
 	var args = std.process.args();
 	_ = args.skip();
@@ -146,21 +143,25 @@ pub fn main() !void {
 	}
 
 	const kelvin: u15 = sched.at(try getHour());
-	var buf: [11]u8 = undefined;
-	const text = try std.fmt.bufPrint(&buf, "󰌵 {}", .{ kelvin });
+	var text_buf: [11]u8 = undefined;
+	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
 	if (kelvin == 6500) {
 		try cmn.run(&.{ "hyprctl", "hyprsunset", "identity" }, mem);
 	} else {
 		try cmn.run(&.{ "hyprctl", "hyprsunset", "temperature", text[5..] }, mem);
 	}
 
-	const class: []const u8 = if (kelvin < 2300) "candle"
-	else if (kelvin < 3900) "warm"
-	else if (kelvin < 5500) "neutral"
-	else "cool";
+	const class: []const u8 = if (kelvin < 2300)
+		"candle"
+	else if (kelvin < 3900)
+		"warm"
+	else if (kelvin < 5500)
+		"neutral"
+	else
+		"cool";
 
-	var ttip: [40]u8 = undefined;
-	const tooltip = try std.fmt.bufPrint(&ttip, "Blue light filter: {}K ({s})", .{
+	var tip_buf: [40]u8 = undefined;
+	const tooltip = try std.fmt.bufPrint(&tip_buf, "Blue light filter: {}K ({s})", .{
 		kelvin, class,
 	});
 	try cmn.send(cmn.Waybar{ .text = text, .class = class, .tooltip = tooltip });

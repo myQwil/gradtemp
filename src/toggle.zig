@@ -13,8 +13,8 @@ fn getState(dir: std.fs.Dir) !bool {
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer switch (gpa.deinit()) {
-		.leak => {}, // std.debug.print("Memory leaks detected!\n", .{}),
-		.ok => {}, // std.debug.print("No memory leaks detected.\n", .{}),
+		.leak => std.debug.print("Memory leaks detected!\n", .{}),
+		.ok => {},
 	};
 	const mem = gpa.allocator();
 
