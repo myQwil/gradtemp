@@ -1,0 +1,25 @@
+name: Linux
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+
+    runs-on: ${{ matrix.os }}
+
+    name: Build on ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v1
+
+      - name: Build (Debug)
+        run: zig build
+
+      - name: Build (Release)
+        run: zig build --release=fast
