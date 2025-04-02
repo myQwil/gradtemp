@@ -1,0 +1,2 @@
+# gradtemp
+hyprsunset waybar module
