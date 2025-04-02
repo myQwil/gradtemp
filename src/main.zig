@@ -148,7 +148,11 @@ pub fn main() !void {
 	const kelvin: u15 = sched.at(try getHour());
 	var buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&buf, "󰌵 {}", .{ kelvin });
-	try cmn.run(&.{ "hyprctl", "hyprsunset", "temperature", text[5..] }, mem);
+	if (kelvin == 6500) {
+		try cmn.run(&.{ "hyprctl", "hyprsunset", "identity" }, mem);
+	} else {
+		try cmn.run(&.{ "hyprctl", "hyprsunset", "temperature", text[5..] }, mem);
+	}
 
 	const class: []const u8 = if (kelvin < 2300) "candle"
 	else if (kelvin < 3900) "warm"
