@@ -1,5 +1,4 @@
 const std = @import("std");
-const Allocator = std.mem.Allocator;
 
 pub const Waybar = struct {
 	text: []const u8,
@@ -13,7 +12,7 @@ pub const Waybar = struct {
 	};
 };
 
-pub fn run(cmd: []const []const u8, mem: Allocator) !void {
+pub fn run(cmd: []const []const u8, mem: std.mem.Allocator) !void {
 	var process = std.process.Child.init(cmd, mem);
 	process.stdout_behavior = .Ignore;
 	process.stderr_behavior = .Ignore;

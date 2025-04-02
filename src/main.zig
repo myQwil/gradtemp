@@ -4,8 +4,6 @@ const c = @cImport({
 	@cInclude("time.h");
 });
 
-const Allocator = std.mem.Allocator;
-
 fn Range(T: type) type { return struct {
 	lo: T,
 	hi: T,
@@ -45,7 +43,7 @@ const Config = struct {
 	dawn: [2]f32 = .{ 4, 6 },
 	dusk: [2]f32 = .{ 19, 21 },
 
-	fn init(mem: Allocator) !Config {
+	fn init(mem: std.mem.Allocator) !Config {
 		const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
 		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp/config.json" });
 		defer mem.free(path);
@@ -87,7 +85,7 @@ const ColorSched = struct {
 	}
 };
 
-fn getState(mem: Allocator) !bool {
+fn getState(mem: std.mem.Allocator) !bool {
 	const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
 	const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp/state" });
 	defer mem.free(path);
