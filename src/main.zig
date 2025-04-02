@@ -16,26 +16,26 @@ const Slope = struct {
 	m: f32,
 	b: u15,
 
-	fn init(hour: Range(f32), temp: Range(u15)) Slope {
+	fn init(hour: Range(f32), kelvin: Range(u15)) Slope {
 		const time: Range(f32) = .{
 			.lo = hour.lo,
 			.hi = if (hour.hi < hour.lo) hour.hi + 24 else hour.hi,
 		};
 		const run: f32 = time.hi - time.lo;
 		if (run == 0) {
-			return .{ .time = time, .m = 0, .b = temp.hi };
+			return .{ .time = time, .m = 0, .b = kelvin.hi };
 		} else {
-			const irise: i16 = @as(i16, @intCast(temp.hi)) - @as(i16, @intCast(temp.lo));
+			const irise: i16 = @as(i16, @intCast(kelvin.hi)) - @as(i16, @intCast(kelvin.lo));
 			const rise: f32 = @floatFromInt(irise);
-			return .{ .time = time, .m = rise / run, .b = temp.lo };
+			return .{ .time = time, .m = rise / run, .b = kelvin.lo };
 		}
 	}
 
 	fn at(self: *const Slope, hour: f32) u15 {
 		const t = &self.time;
 		const x: f32 = @min(if (hour < t.lo) hour + 24 else hour, t.hi) - t.lo;
-		const temp: f32 = @round(self.m * x + @as(f32, @floatFromInt(self.b)));
-		return @intFromFloat(temp);
+		const kelvin: f32 = @round(self.m * x + @as(f32, @floatFromInt(self.b)));
+		return @intFromFloat(kelvin);
 	}
 };
 
@@ -147,19 +147,19 @@ pub fn main() !void {
 		return cmn.send(.inactive);
 	}
 
-	const temp: u15 = sched.at(try getHour());
+	const kelvin: u15 = sched.at(try getHour());
 	var buf: [11]u8 = undefined;
-	const text = try std.fmt.bufPrint(&buf, "󰌵 {}", .{ temp });
+	const text = try std.fmt.bufPrint(&buf, "󰌵 {}", .{ kelvin });
 	try cmn.run(&.{ "hyprctl", "hyprsunset", "temperature", text[5..] }, mem);
 
-	const class: []const u8 = if (temp < 2300) "candle"
-	else if (temp < 3900) "warm"
-	else if (temp < 5500) "neutral"
+	const class: []const u8 = if (kelvin < 2300) "candle"
+	else if (kelvin < 3900) "warm"
+	else if (kelvin < 5500) "neutral"
 	else "cool";
 
 	var ttip: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(&ttip, "Blue light filter: {}K ({s})", .{
-		temp, class,
+		kelvin, class,
 	});
 	try cmn.send(cmn.Waybar{ .text = text, .class = class, .tooltip = tooltip });
 }
