@@ -1,0 +1,6 @@
+[Unit]
+Description=Change color temperature based on current time
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/gradtemp

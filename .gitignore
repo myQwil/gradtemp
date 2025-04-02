@@ -1,2 +1,6 @@
+# Zig folders
 .zig-cache/
 zig-out/
+
+#VSCode folder
+.vscode/

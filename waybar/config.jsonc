@@ -1,0 +1,9 @@
+{
+    "custom/colortemp": {
+        "format": "{}",
+        "interval": 60,
+        "exec": "/path/to/gradtemp",
+        "on-click": "/path/to/toggle",
+        "return-type": "json"
+    }
+}
