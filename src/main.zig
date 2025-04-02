@@ -69,8 +69,7 @@ const ColorSched = struct {
 	dawn: Slope,
 	dusk: Slope,
 
-	fn init(mem: Allocator) ColorSched {
-		const cfg: Config = Config.init(mem) catch .{};
+	fn init(cfg: *const Config) ColorSched {
 		const dawn_period: Range(f32) = .{ .lo = cfg.dawn[0], .hi = cfg.dawn[1] };
 		const dusk_period: Range(f32) = .{ .lo = cfg.dusk[0], .hi = cfg.dusk[1] };
 		return .{
@@ -126,7 +125,10 @@ pub fn main() !void {
 	};
 	const mem = gpa.allocator();
 
-	const sched: ColorSched = .init(mem);
+	const sched: ColorSched = blk: {
+		const cfg: Config = Config.init(mem) catch .{};
+		break :blk .init(&cfg);
+	};
 
 	var args = std.process.args();
 	_ = args.skip();
