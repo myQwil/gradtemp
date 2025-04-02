@@ -16,6 +16,14 @@ pub fn build(b: *std.Build) void {
 	});
 	b.installArtifact(exe);
 
+	const run_cmd = b.addRunArtifact(exe);
+	run_cmd.step.dependOn(b.getInstallStep());
+	if (b.args) |args| {
+		run_cmd.addArgs(args);
+	}
+	const run_step = b.step("run", "Run the main app");
+	run_step.dependOn(&run_cmd.step);
+
 	const tgl_mod = b.createModule(.{
 		.root_source_file = b.path("src/toggle.zig"),
 		.target = target,
@@ -27,11 +35,8 @@ pub fn build(b: *std.Build) void {
 	});
 	b.installArtifact(tgl);
 
-	const run_cmd = b.addRunArtifact(exe);
-	run_cmd.step.dependOn(b.getInstallStep());
-	if (b.args) |args| {
-		run_cmd.addArgs(args);
-	}
-	const run_step = b.step("run", "Run the app");
-	run_step.dependOn(&run_cmd.step);
+	const run_tgl_cmd = b.addRunArtifact(tgl);
+	run_tgl_cmd.step.dependOn(b.getInstallStep());
+	const run_tgl_step = b.step("run_toggle", "Run the toggle app");
+	run_tgl_step.dependOn(&run_tgl_cmd.step);
 }
