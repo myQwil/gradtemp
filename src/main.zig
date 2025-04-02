@@ -52,7 +52,7 @@ const Config = struct {
 		const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
 		defer file.close();
 
-		const contents = try file.readToEndAlloc(mem, 1024 * 1024); // 1MB max
+		const contents = try file.readToEndAlloc(mem, 1024);
 		defer mem.free(contents);
 
 		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
