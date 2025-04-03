@@ -97,15 +97,24 @@ pub const Waybar = struct {
 	};
 };
 
-const json_inactive: []const u8 = "{\"text\":\"\\udb80\\udf36 6500\","
-	++ "\"class\":\"cool\",\"tooltip\":\"Blue light filter: 6500K (off)\"}";
+const json_inactive = blk: {
+	var buf: [128]u8 = undefined;
+	var stream = std.io.fixedBufferStream(&buf);
+	const writer = stream.writer();
+	std.json.stringify(Waybar.inactive, .{ .escape_unicode = true }, writer) catch |e| {
+		@compileError("Failed to stringify Waybar.inactive: " ++ @errorName(e));
+	};
+	var new_buf: [stream.getWritten().len]u8 = undefined;
+	@memcpy(&new_buf, buf[0..new_buf.len]);
+	break :blk new_buf;
+};
 
 pub fn send(value: *const Waybar) !void {
 	const stdout_file = std.io.getStdOut().writer();
 	var bw = std.io.bufferedWriter(stdout_file);
 	const stdout = bw.writer();
 	if (value == &Waybar.inactive) {
-		try stdout.writeAll(json_inactive);
+		try stdout.writeAll(&json_inactive);
 	} else {
 		try std.json.stringify(value, .{ .escape_unicode = true }, stdout);
 	}
