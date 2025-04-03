@@ -85,6 +85,33 @@ const ColorSched = struct {
 	}
 };
 
+pub const Waybar = struct {
+	text: []const u8,
+	class: []const u8,
+	tooltip: []const u8,
+
+	pub const inactive: Waybar = .{
+		.text = "󰌶 6500",
+		.class = "cool",
+		.tooltip = "Blue light filter: 6500K (off)",
+	};
+};
+
+const json_inactive: []const u8 = "{\"text\":\"\\udb80\\udf36 6500\","
+	++ "\"class\":\"cool\",\"tooltip\":\"Blue light filter: 6500K (off)\"}";
+
+pub fn send(value: *const Waybar) !void {
+	const stdout_file = std.io.getStdOut().writer();
+	var bw = std.io.bufferedWriter(stdout_file);
+	const stdout = bw.writer();
+	if (value == &Waybar.inactive) {
+		try stdout.writeAll(json_inactive);
+	} else {
+		try std.json.stringify(value, .{ .escape_unicode = true }, stdout);
+	}
+	try bw.flush();
+}
+
 fn getState(mem: std.mem.Allocator) !bool {
 	const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
 	const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp/state" });
@@ -138,7 +165,7 @@ pub fn main() !void {
 
 	const on: bool = getState(mem) catch true;
 	if (!on) {
-		return cmn.send(&.inactive);
+		return send(&.inactive);
 	}
 
 	const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
@@ -164,5 +191,5 @@ pub fn main() !void {
 	const tooltip = try std.fmt.bufPrint(&tip_buf, "Blue light filter: {}K ({s})", .{
 		kelvin, class,
 	});
-	try cmn.send(&.{ .text = text, .class = class, .tooltip = tooltip });
+	return send(&.{ .text = text, .class = class, .tooltip = tooltip });
 }
