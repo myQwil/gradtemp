@@ -12,6 +12,9 @@ pub const Waybar = struct {
 	};
 };
 
+const json_inactive: []const u8 = "{\"text\":\"\\udb80\\udf36 6500\","
+	++ "\"class\":\"cool\",\"tooltip\":\"Blue light filter: 6500K (off)\"}";
+
 pub fn run(cmd: []const []const u8, mem: std.mem.Allocator) !void {
 	var process = std.process.Child.init(cmd, mem);
 	process.stdout_behavior = .Ignore;
@@ -20,10 +23,14 @@ pub fn run(cmd: []const []const u8, mem: std.mem.Allocator) !void {
 	_ = try process.wait();
 }
 
-pub fn send(value: Waybar) !void {
+pub fn send(value: *const Waybar) !void {
 	const stdout_file = std.io.getStdOut().writer();
 	var bw = std.io.bufferedWriter(stdout_file);
 	const stdout = bw.writer();
-	_ = try std.json.stringify(value, .{ .escape_unicode = true }, stdout);
+	if (value == &Waybar.inactive) {
+		try stdout.writeAll(json_inactive);
+	} else {
+		try std.json.stringify(value, .{ .escape_unicode = true }, stdout);
+	}
 	try bw.flush();
 }

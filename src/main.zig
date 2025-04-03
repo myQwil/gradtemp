@@ -115,13 +115,12 @@ pub fn main() !void {
 	};
 	const mem = gpa.allocator();
 
-	const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
-
 	var args = std.process.args();
 	_ = args.skip();
 	if (args.next()) |arg| {
 		// Print temperatures over a span of 24 hours.
 		// Arg specifies how many segments each hour is divided into.
+		const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
 		const div: f32 = try std.fmt.parseFloat(f32, arg);
 		const n: u15 = @intFromFloat(24 * div);
 		std.debug.print("\n", .{});
@@ -139,9 +138,10 @@ pub fn main() !void {
 
 	const on: bool = getState(mem) catch true;
 	if (!on) {
-		return cmn.send(.inactive);
+		return cmn.send(&.inactive);
 	}
 
+	const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
 	const kelvin: u15 = sched.at(try getHour());
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
@@ -164,5 +164,5 @@ pub fn main() !void {
 	const tooltip = try std.fmt.bufPrint(&tip_buf, "Blue light filter: {}K ({s})", .{
 		kelvin, class,
 	});
-	try cmn.send(cmn.Waybar{ .text = text, .class = class, .tooltip = tooltip });
+	try cmn.send(&.{ .text = text, .class = class, .tooltip = tooltip });
 }
