@@ -61,11 +61,11 @@ const Config = struct {
 	}
 };
 
-const ColorSched = struct {
+const Schedule = struct {
 	dawn: Slope,
 	dusk: Slope,
 
-	fn init(cfg: *const Config) ColorSched {
+	fn init(cfg: *const Config) Schedule {
 		const dawn_period: Range(f32) = .{ .lo = cfg.dawn[0], .hi = cfg.dawn[1] };
 		const dusk_period: Range(f32) = .{ .lo = cfg.dusk[0], .hi = cfg.dusk[1] };
 		return .{
@@ -74,7 +74,7 @@ const ColorSched = struct {
 		};
 	}
 
-	fn at(self: *const ColorSched, hr: f32) u15 {
+	fn at(self: *const Schedule, hr: f32) u15 {
 		const dn = &self.dawn.time;
 		const dk = &self.dusk.time;
 		if (dn.lo < dk.lo) {
@@ -147,7 +147,7 @@ pub fn main() !void {
 	if (args.next()) |arg| {
 		// Print temperatures over a span of 24 hours.
 		// Arg specifies how many segments each hour is divided into.
-		const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
+		const schedule: Schedule = .init(&(Config.init(mem) catch .{}));
 		const div: f32 = try std.fmt.parseFloat(f32, arg);
 		const n: u15 = @intFromFloat(24 * div);
 		std.debug.print("\n", .{});
@@ -157,7 +157,7 @@ pub fn main() !void {
 			std.debug.print("{:0>2}:{:0>2} - {}\n", .{
 				@as(u5, @intFromFloat(ih)),
 				@as(u6, @intFromFloat((h - ih) * 60)),
-				sched.at(h),
+				schedule.at(h),
 			});
 		}
 		return;
@@ -168,8 +168,8 @@ pub fn main() !void {
 		return send(&.inactive);
 	}
 
-	const sched: ColorSched = .init(&(Config.init(mem) catch .{}));
-	const kelvin: u15 = sched.at(try getHour());
+	const kelvin: u15 = Schedule.init(&(Config.init(mem) catch .{})).at(try getHour());
+
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
 	if (kelvin == 6500) {
