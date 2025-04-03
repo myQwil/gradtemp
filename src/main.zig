@@ -163,8 +163,7 @@ pub fn main() !void {
 		return;
 	}
 
-	const on: bool = getState(mem) catch true;
-	if (!on) {
+	if (!(getState(mem) catch true)) {
 		return send(&.inactive);
 	}
 
