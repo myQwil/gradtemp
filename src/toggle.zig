@@ -37,6 +37,6 @@ pub fn main() !void {
 	_ = try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
 
 	if (!on) {
-		try cmn.run(&.{ "hyprctl", "hyprsunset", "identity" }, mem);
+		try cmn.run(mem, &.{ "hyprctl", "hyprsunset", "identity" });
 	}
 }
