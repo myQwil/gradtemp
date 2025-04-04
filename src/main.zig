@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const state_name = "state";
+const conf = ".config/gradtemp/config.json";
+const state = ".cache/gradtemp/state";
 
 fn Range(T: type) type { return struct {
 	lo: T,
@@ -13,17 +14,11 @@ const Config = struct {
 	dawn: [2]f32 = .{ 4, 6 },
 	dusk: [2]f32 = .{ 19, 21 },
 
-	fn init(mem: std.mem.Allocator) !Config {
-		const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
-		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp/config.json" });
-		defer mem.free(path);
-
-		const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+	fn init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
+		const file = try home.openFile(conf, .{ .mode = .read_only });
 		defer file.close();
-
 		const contents = try file.readToEndAlloc(mem, 1024);
 		defer mem.free(contents);
-
 		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
 		defer parsed.deinit();
 
@@ -107,7 +102,7 @@ const json_inactive = blk: {
 	break :blk new_buf;
 };
 
-pub fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
+fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
 	var proc = std.process.Child.init(cmd, mem);
 	proc.stdout_behavior = .Ignore;
 	proc.stderr_behavior = .Ignore;
@@ -127,29 +122,21 @@ fn send(value: *const Waybar) !void {
 	try bw.flush();
 }
 
-fn getState(mem: std.mem.Allocator) !bool {
-	const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
-	const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp/state" });
-	defer mem.free(path);
-
-	const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+fn getState(home: std.fs.Dir) !bool {
+	const file = try home.openFile(state, .{ .mode = .read_only });
 	defer file.close();
-
-	return (try file.reader().readByte() == '1');
-}
-
-fn getStateFromDir(dir: std.fs.Dir) !bool {
-	const file = try dir.openFile(state_name, .{ .mode = .read_only });
-	defer file.close();
-
 	return (try file.reader().readByte() == '1');
 }
 
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
-
 	const mem = gpa.allocator();
+
+	var home = try std.fs.cwd().openDir(
+		std.posix.getenv("HOME") orelse return error.NoHomeEnv, .{});
+	defer home.close();
+
 	var args = std.process.args();
 	_ = args.skip();
 	if (args.next()) |arg| {
@@ -158,7 +145,7 @@ pub fn main() !void {
 			// Arg specifies how many segments each hour is divided into.
 			const n: u11 = @as(u11, @intCast(seg)) * 24;
 			const div: f32 = @floatFromInt(seg);
-			const schedule: Schedule = .init(&(Config.init(mem) catch .{}));
+			const schedule: Schedule = .init(&(Config.init(mem, home) catch .{}));
 			std.debug.print("\n", .{});
 			for (0..n) |i| {
 				const h: f32 = @as(f32, @floatFromInt(i)) / div;
@@ -171,24 +158,15 @@ pub fn main() !void {
 			}
 		} else |_| {
 			// Toggle the on/off state
-			const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
-			const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp" });
-			defer mem.free(path);
+			const path = state[0..state.len - 6];
+			home.access(path, .{}) catch try home.makePath(path);
+			const on: bool = !(getState(home) catch true);
 
-			var dir = blk: {
-				const cwd = std.fs.cwd();
-				cwd.access(path, .{}) catch try cwd.makePath(path);
-				break :blk try cwd.openDir(path, .{});
-			};
-			defer dir.close();
-
-			const on: bool = !(getStateFromDir(dir) catch true);
-			const file = dir.openFile(state_name, .{ .mode = .write_only })
-				catch try dir.createFile(state_name, .{});
+			const file = home.openFile(state, .{ .mode = .write_only })
+				catch try home.createFile(state, .{});
 			defer file.close();
 
-			_ = try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
-
+			try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
 			if (!on) {
 				try process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
 			}
@@ -196,10 +174,10 @@ pub fn main() !void {
 		return;
 	}
 
-	if (!(getState(mem) catch true)) {
+	if (!(getState(home) catch true)) {
 		return send(&.inactive);
 	}
-	const kelvin: u15 = Schedule.init(&(Config.init(mem) catch .{})).at(blk: {
+	const kelvin: u15 = Schedule.init(&(Config.init(mem, home) catch .{})).at(blk: {
 		const c = @cImport({ @cInclude("time.h"); });
 		var time: c.time_t = @intCast(std.time.timestamp());
 		const local: *c.struct_tm = c.localtime(&time)
@@ -229,8 +207,7 @@ pub fn main() !void {
 		"cool";
 
 	var tip_buf: [40]u8 = undefined;
-	const tooltip = try std.fmt.bufPrint(&tip_buf, "Blue light filter: {}K ({s})", .{
-		kelvin, class,
-	});
+	const tooltip = try std.fmt.bufPrint(
+		&tip_buf, "Blue light filter: {}K ({s})", .{ kelvin, class });
 	return send(&.{ .text = text, .class = class, .tooltip = tooltip });
 }
