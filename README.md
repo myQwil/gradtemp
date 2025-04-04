@@ -23,16 +23,15 @@ killall waybar; waybar & disown
 ```
 The module can then be toggled on and off by clicking on it.
 
-## Zig and Python versions
-The first version of the module was written in Python. It doesn't take advantage of config files, but it also doesn't need to be compiled.
-
-The Zig version will look for a json config file at `~/config/gradtemp/config.json`
+## Config options
+gradtemp will look for a json config file at `~/config/gradtemp/config.json`
 
 Options include:
 - `"day": int` - the color temperature for day time.
 - `"night": int` - the color temperature for night time.
 - `"dawn": [float, float]` - the time interval where night turns to day.
 - `"dusk": [float, float]` - the time interval where day turns to night.
+- `"logarithmic": bool` - whether to use logarithmic scaling.
 
 Time intervals use the hours of a 24-hour clock. For example, `[4, 6]` means the interval occurs between 4am and 6am, while `[16, 18]` would occur between 4pm and 6pm.
 
