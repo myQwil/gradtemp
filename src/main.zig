@@ -85,12 +85,12 @@ const Schedule = struct {
 	}
 };
 
-pub const Waybar = struct {
+const Waybar = struct {
 	text: []const u8,
 	class: []const u8,
 	tooltip: []const u8,
 
-	pub const inactive: Waybar = .{
+	const inactive: Waybar = .{
 		.text = "󰌶 6500",
 		.class = "cool",
 		.tooltip = "Blue light filter: 6500K (off)",
@@ -109,7 +109,7 @@ const json_inactive = blk: {
 	break :blk new_buf;
 };
 
-pub fn send(value: *const Waybar) !void {
+fn send(value: *const Waybar) !void {
 	const stdout_file = std.io.getStdOut().writer();
 	var bw = std.io.bufferedWriter(stdout_file);
 	const stdout = bw.writer();
