@@ -87,10 +87,10 @@ pub fn main() !void {
 		else &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
 
 	const class: []const u8 =
-		if      (kelvin < 2300) "candle"
-		else if (kelvin < 3900) "warm"
-		else if (kelvin < 5500) "neutral"
-		else                    "cool";
+		if      (kelvin >= 5500) "cool"
+		else if (kelvin >= 4000) "neutral"
+		else if (kelvin >= 2500) "warm"
+		else                     "candle";
 
 	var tip_buf: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(
