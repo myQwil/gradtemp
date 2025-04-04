@@ -173,9 +173,9 @@ pub fn main() !void {
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
 	if (kelvin == 6500) {
-		try cmn.run(mem, &.{ "hyprctl", "hyprsunset", "identity" });
+		try cmn.process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
 	} else {
-		try cmn.run(mem, &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
+		try cmn.process(mem, &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
 	}
 
 	const class: []const u8 = if (kelvin < 2300)
