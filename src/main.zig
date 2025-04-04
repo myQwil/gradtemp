@@ -3,6 +3,11 @@ const Waybar = @import("Waybar.zig");
 const Schedule = @import("Schedule.zig");
 
 const state = ".cache/gradtemp/state";
+fn getState(home: std.fs.Dir) !bool {
+	const file = try home.openFile(state, .{ .mode = .read_only });
+	defer file.close();
+	return (try file.reader().readByte() == '1');
+}
 
 fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
 	var proc = std.process.Child.init(cmd, mem);
@@ -10,12 +15,6 @@ fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
 	proc.stderr_behavior = .Ignore;
 	_ = try proc.spawn();
 	_ = try proc.wait();
-}
-
-fn getState(home: std.fs.Dir) !bool {
-	const file = try home.openFile(state, .{ .mode = .read_only });
-	defer file.close();
-	return (try file.reader().readByte() == '1');
 }
 
 pub fn main() !void {
@@ -26,6 +25,9 @@ pub fn main() !void {
 	var home = try std.fs.cwd().openDir(
 		std.posix.getenv("HOME") orelse return error.NoHomeEnv, .{});
 	defer home.close();
+
+	const identity = 6500;
+	const cmd_identity: [3][]const u8 = .{ "hyprctl", "hyprsunset", "identity" };
 
 	var args = std.process.args();
 	_ = args.skip();
@@ -58,7 +60,7 @@ pub fn main() !void {
 
 			try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
 			if (!on) {
-				try process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
+				try process(mem, &cmd_identity);
 			}
 		}
 		return;
@@ -81,20 +83,14 @@ pub fn main() !void {
 
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
-	if (kelvin == 6500) {
-		try process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
-	} else {
-		try process(mem, &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
-	}
+	try process(mem, if (kelvin == identity) &cmd_identity
+		else &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
 
-	const class: []const u8 = if (kelvin < 2300)
-		"candle"
-	else if (kelvin < 3900)
-		"warm"
-	else if (kelvin < 5500)
-		"neutral"
-	else
-		"cool";
+	const class: []const u8 =
+		if      (kelvin < 2300) "candle"
+		else if (kelvin < 3900) "warm"
+		else if (kelvin < 5500) "neutral"
+		else                    "cool";
 
 	var tip_buf: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(

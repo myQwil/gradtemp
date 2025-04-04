@@ -1,5 +1,5 @@
-const std = @import("std");
 const Waybar = @This();
+const std = @import("std");
 
 text: []const u8,
 class: []const u8,

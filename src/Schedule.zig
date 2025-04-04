@@ -1,5 +1,5 @@
-const std = @import("std");
 const Schedule = @This();
+const std = @import("std");
 
 dawn: Slope,
 dusk: Slope,
