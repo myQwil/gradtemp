@@ -138,9 +138,10 @@ pub fn main() !void {
 	if (args.next()) |arg| {
 		// Print temperatures over a span of 24 hours.
 		// Arg specifies how many segments each hour is divided into.
+		const seg: u6 = @min(60, try std.fmt.parseInt(u6, arg, 10));
+		const n: u11 = @as(u11, @intCast(seg)) * 24;
+		const div: f32 = @floatFromInt(seg);
 		const schedule: Schedule = .init(&(Config.init(mem) catch .{}));
-		const div: f32 = try std.fmt.parseFloat(f32, arg);
-		const n: u15 = @intFromFloat(24 * div);
 		std.debug.print("\n", .{});
 		for (0..n) |i| {
 			const h: f32 = @as(f32, @floatFromInt(i)) / div;
