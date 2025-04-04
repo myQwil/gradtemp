@@ -1,82 +1,5 @@
 const std = @import("std");
-
-const conf = ".config/gradtemp/config.json";
-const state = ".cache/gradtemp/state";
-
-fn Range(T: type) type { return struct {
-	lo: T,
-	hi: T,
-};}
-
-const Config = struct {
-	day: u15 = 6500,
-	night: u15 = 1900,
-	dawn: [2]f32 = .{ 4, 6 },
-	dusk: [2]f32 = .{ 19, 21 },
-
-	fn init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
-		const file = try home.openFile(conf, .{ .mode = .read_only });
-		defer file.close();
-		const contents = try file.readToEndAlloc(mem, 1024);
-		defer mem.free(contents);
-		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
-		defer parsed.deinit();
-
-		return parsed.value;
-	}
-};
-
-const Slope = struct {
-	time: Range(f32),
-	m: f32,
-	b: u15,
-
-	fn init(hour: Range(f32), kelvin: Range(u15)) Slope {
-		const time: Range(f32) = .{
-			.lo = hour.lo,
-			.hi = if (hour.hi < hour.lo) hour.hi + 24 else hour.hi,
-		};
-		const run: f32 = time.hi - time.lo;
-		if (run == 0) {
-			return .{ .time = time, .m = 0, .b = kelvin.hi };
-		} else {
-			const irise: i16 = @as(i16, @intCast(kelvin.hi)) - @as(i16, @intCast(kelvin.lo));
-			const rise: f32 = @floatFromInt(irise);
-			return .{ .time = time, .m = rise / run, .b = kelvin.lo };
-		}
-	}
-
-	fn at(self: *const Slope, hour: f32) u15 {
-		const t = &self.time;
-		const x: f32 = @min(if (hour < t.lo) hour + 24 else hour, t.hi) - t.lo;
-		const kelvin: f32 = @round(self.m * x + @as(f32, @floatFromInt(self.b)));
-		return @intFromFloat(kelvin);
-	}
-};
-
-const Schedule = struct {
-	dawn: Slope,
-	dusk: Slope,
-
-	fn init(cfg: *const Config) Schedule {
-		const dawn_period: Range(f32) = .{ .lo = cfg.dawn[0], .hi = cfg.dawn[1] };
-		const dusk_period: Range(f32) = .{ .lo = cfg.dusk[0], .hi = cfg.dusk[1] };
-		return .{
-			.dawn = .init(dawn_period, .{ .lo = cfg.night, .hi = cfg.day }),
-			.dusk = .init(dusk_period, .{ .lo = cfg.day, .hi = cfg.night }),
-		};
-	}
-
-	fn at(self: *const Schedule, hr: f32) u15 {
-		const dn = &self.dawn.time;
-		const dk = &self.dusk.time;
-		if (dn.lo < dk.lo) {
-			return if (dn.lo <= hr and hr < dk.lo) self.dawn.at(hr) else self.dusk.at(hr);
-		} else {
-			return if (dk.lo <= hr and hr < dn.lo) self.dusk.at(hr) else self.dawn.at(hr);
-		}
-	}
-};
+const Schedule = @import("Schedule.zig");
 
 const Waybar = struct {
 	text: []const u8,
@@ -90,6 +13,7 @@ const Waybar = struct {
 	};
 };
 
+const state = ".cache/gradtemp/state";
 const json_inactive = blk: {
 	var buf: [128]u8 = undefined;
 	var stream = std.io.fixedBufferStream(&buf);
@@ -143,9 +67,9 @@ pub fn main() !void {
 		if (std.fmt.parseInt(u6, arg, 10)) |seg| {
 			// Print temperatures over a span of 24 hours.
 			// Arg specifies how many segments each hour is divided into.
-			const n: u11 = @as(u11, @intCast(seg)) * 24;
+			const n: u11 = @as(u11, seg) * 24;
 			const div: f32 = @floatFromInt(seg);
-			const schedule: Schedule = .init(&(Config.init(mem, home) catch .{}));
+			const schedule: Schedule = .init(mem, home);
 			std.debug.print("\n", .{});
 			for (0..n) |i| {
 				const h: f32 = @as(f32, @floatFromInt(i)) / div;
@@ -177,7 +101,7 @@ pub fn main() !void {
 	if (!(getState(home) catch true)) {
 		return send(&.inactive);
 	}
-	const kelvin: u15 = Schedule.init(&(Config.init(mem, home) catch .{})).at(blk: {
+	const kelvin: u15 = Schedule.init(mem, home).at(blk: {
 		const c = @cImport({ @cInclude("time.h"); });
 		var time: c.time_t = @intCast(std.time.timestamp());
 		const local: *c.struct_tm = c.localtime(&time)
