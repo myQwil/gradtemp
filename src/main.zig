@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const state_name = "state";
+
 fn Range(T: type) type { return struct {
 	lo: T,
 	hi: T,
@@ -105,6 +107,14 @@ const json_inactive = blk: {
 	break :blk new_buf;
 };
 
+pub fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
+	var proc = std.process.Child.init(cmd, mem);
+	proc.stdout_behavior = .Ignore;
+	proc.stderr_behavior = .Ignore;
+	_ = try proc.spawn();
+	_ = try proc.wait();
+}
+
 fn send(value: *const Waybar) !void {
 	const stdout_file = std.io.getStdOut().writer();
 	var bw = std.io.bufferedWriter(stdout_file);
@@ -128,6 +138,13 @@ fn getState(mem: std.mem.Allocator) !bool {
 	return (try file.reader().readByte() == '1');
 }
 
+fn getStateFromDir(dir: std.fs.Dir) !bool {
+	const file = try dir.openFile(state_name, .{ .mode = .read_only });
+	defer file.close();
+
+	return (try file.reader().readByte() == '1');
+}
+
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
@@ -136,21 +153,45 @@ pub fn main() !void {
 	var args = std.process.args();
 	_ = args.skip();
 	if (args.next()) |arg| {
-		// Print temperatures over a span of 24 hours.
-		// Arg specifies how many segments each hour is divided into.
-		const seg: u6 = @min(60, try std.fmt.parseInt(u6, arg, 10));
-		const n: u11 = @as(u11, @intCast(seg)) * 24;
-		const div: f32 = @floatFromInt(seg);
-		const schedule: Schedule = .init(&(Config.init(mem) catch .{}));
-		std.debug.print("\n", .{});
-		for (0..n) |i| {
-			const h: f32 = @as(f32, @floatFromInt(i)) / div;
-			const ih: f32 = @trunc(h);
-			std.debug.print("{:0>2}:{:0>2} - {}\n", .{
-				@as(u5, @intFromFloat(ih)),
-				@as(u6, @intFromFloat((h - ih) * 60)),
-				schedule.at(h),
-			});
+		if (std.fmt.parseInt(u6, arg, 10)) |seg| {
+			// Print temperatures over a span of 24 hours.
+			// Arg specifies how many segments each hour is divided into.
+			const n: u11 = @as(u11, @intCast(seg)) * 24;
+			const div: f32 = @floatFromInt(seg);
+			const schedule: Schedule = .init(&(Config.init(mem) catch .{}));
+			std.debug.print("\n", .{});
+			for (0..n) |i| {
+				const h: f32 = @as(f32, @floatFromInt(i)) / div;
+				const ih: f32 = @trunc(h);
+				std.debug.print("{:0>2}:{:0>2} - {}\n", .{
+					@as(u5, @intFromFloat(ih)),
+					@as(u6, @intFromFloat((h - ih) * 60)),
+					schedule.at(h),
+				});
+			}
+		} else |_| {
+			// Toggle the on/off state
+			const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
+			const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp" });
+			defer mem.free(path);
+
+			var dir = blk: {
+				const cwd = std.fs.cwd();
+				cwd.access(path, .{}) catch try cwd.makePath(path);
+				break :blk try cwd.openDir(path, .{});
+			};
+			defer dir.close();
+
+			const on: bool = !(getStateFromDir(dir) catch true);
+			const file = dir.openFile(state_name, .{ .mode = .write_only })
+				catch try dir.createFile(state_name, .{});
+			defer file.close();
+
+			_ = try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
+
+			if (!on) {
+				try process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
+			}
 		}
 		return;
 	}
@@ -170,13 +211,12 @@ pub fn main() !void {
 		break :blk hour + (minute / 60) + (second / (60 * 60));
 	});
 
-	const cmn = @import("common.zig");
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
 	if (kelvin == 6500) {
-		try cmn.process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
+		try process(mem, &.{ "hyprctl", "hyprsunset", "identity" });
 	} else {
-		try cmn.process(mem, &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
+		try process(mem, &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
 	}
 
 	const class: []const u8 = if (kelvin < 2300)

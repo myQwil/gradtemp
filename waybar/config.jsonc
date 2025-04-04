@@ -3,7 +3,7 @@
         "format": "{}",
         "interval": 60,
         "exec": "/path/to/gradtemp",
-        "on-click": "/path/to/toggle",
+        "on-click": "/path/to/gradtemp tgl",
         "return-type": "json"
     }
 }
