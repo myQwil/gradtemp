@@ -9,6 +9,30 @@ fn Range(T: type) type { return struct {
 	hi: T,
 };}
 
+const Config = struct {
+	day: u15 = 6500,
+	night: u15 = 1900,
+	dawn: [2]f32 = .{ 4, 6 },
+	dusk: [2]f32 = .{ 19, 21 },
+
+	fn init(mem: std.mem.Allocator) !Config {
+		const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
+		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp/config.json" });
+		defer mem.free(path);
+
+		const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+		defer file.close();
+
+		const contents = try file.readToEndAlloc(mem, 1024);
+		defer mem.free(contents);
+
+		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
+		defer parsed.deinit();
+
+		return parsed.value;
+	}
+};
+
 const Slope = struct {
 	time: Range(f32),
 	m: f32,
@@ -34,30 +58,6 @@ const Slope = struct {
 		const x: f32 = @min(if (hour < t.lo) hour + 24 else hour, t.hi) - t.lo;
 		const kelvin: f32 = @round(self.m * x + @as(f32, @floatFromInt(self.b)));
 		return @intFromFloat(kelvin);
-	}
-};
-
-const Config = struct {
-	day: u15 = 6500,
-	night: u15 = 1900,
-	dawn: [2]f32 = .{ 4, 6 },
-	dusk: [2]f32 = .{ 19, 21 },
-
-	fn init(mem: std.mem.Allocator) !Config {
-		const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
-		const path = try std.fs.path.join(mem, &.{ home, ".config/gradtemp/config.json" });
-		defer mem.free(path);
-
-		const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
-		defer file.close();
-
-		const contents = try file.readToEndAlloc(mem, 1024);
-		defer mem.free(contents);
-
-		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
-		defer parsed.deinit();
-
-		return parsed.value;
 	}
 };
 
