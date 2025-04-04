@@ -1,8 +1,4 @@
 const std = @import("std");
-const cmn = @import("common.zig");
-const c = @cImport({
-	@cInclude("time.h");
-});
 
 fn Range(T: type) type { return struct {
 	lo: T,
@@ -132,17 +128,6 @@ fn getState(mem: std.mem.Allocator) !bool {
 	return (try file.reader().readByte() == '1');
 }
 
-fn getHour() !f32 {
-	var time: c.time_t = @intCast(std.time.timestamp());
-	const local: *c.struct_tm = c.localtime(&time)
-		orelse return error.TimeConversionFailed;
-
-	const hour: f32 = @floatFromInt(local.tm_hour);
-	const minute: f32 = @floatFromInt(local.tm_min);
-	const second: f32 = @floatFromInt(local.tm_sec);
-	return hour + (minute / 60) + (second / (60 * 60));
-}
-
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
 	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
@@ -172,9 +157,19 @@ pub fn main() !void {
 	if (!(getState(mem) catch true)) {
 		return send(&.inactive);
 	}
+	const kelvin: u15 = Schedule.init(&(Config.init(mem) catch .{})).at(blk: {
+		const c = @cImport({ @cInclude("time.h"); });
+		var time: c.time_t = @intCast(std.time.timestamp());
+		const local: *c.struct_tm = c.localtime(&time)
+			orelse return error.TimeConversionFailed;
 
-	const kelvin: u15 = Schedule.init(&(Config.init(mem) catch .{})).at(try getHour());
+		const hour: f32 = @floatFromInt(local.tm_hour);
+		const minute: f32 = @floatFromInt(local.tm_min);
+		const second: f32 = @floatFromInt(local.tm_sec);
+		break :blk hour + (minute / 60) + (second / (60 * 60));
+	});
 
+	const cmn = @import("common.zig");
 	var text_buf: [11]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
 	if (kelvin == 6500) {
