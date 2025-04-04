@@ -145,12 +145,9 @@ fn getHour() !f32 {
 
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-	defer switch (gpa.deinit()) {
-		.leak => std.debug.print("Memory leaks detected!\n", .{}),
-		.ok => {},
-	};
-	const mem = gpa.allocator();
+	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
 
+	const mem = gpa.allocator();
 	var args = std.process.args();
 	_ = args.skip();
 	if (args.next()) |arg| {

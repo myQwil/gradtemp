@@ -12,12 +12,9 @@ fn getState(dir: std.fs.Dir) !bool {
 
 pub fn main() !void {
 	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-	defer switch (gpa.deinit()) {
-		.leak => std.debug.print("Memory leaks detected!\n", .{}),
-		.ok => {},
-	};
-	const mem = gpa.allocator();
+	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
 
+	const mem = gpa.allocator();
 	const home = std.posix.getenv("HOME") orelse return error.NoHomeEnv;
 	const path = try std.fs.path.join(mem, &.{ home, ".cache/gradtemp" });
 	defer mem.free(path);
