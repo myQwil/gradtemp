@@ -1,30 +1,8 @@
 const std = @import("std");
+const Waybar = @import("Waybar.zig");
 const Schedule = @import("Schedule.zig");
 
-const Waybar = struct {
-	text: []const u8,
-	class: []const u8,
-	tooltip: []const u8,
-
-	const inactive: Waybar = .{
-		.text = "󰌶 6500",
-		.class = "cool",
-		.tooltip = "Blue light filter: 6500K (off)",
-	};
-};
-
 const state = ".cache/gradtemp/state";
-const json_inactive = blk: {
-	var buf: [128]u8 = undefined;
-	var stream = std.io.fixedBufferStream(&buf);
-	const writer = stream.writer();
-	std.json.stringify(Waybar.inactive, .{ .escape_unicode = true }, writer) catch |e| {
-		@compileError("Failed to stringify Waybar.inactive: " ++ @errorName(e));
-	};
-	var new_buf: [stream.getWritten().len]u8 = undefined;
-	@memcpy(&new_buf, buf[0..new_buf.len]);
-	break :blk new_buf;
-};
 
 fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
 	var proc = std.process.Child.init(cmd, mem);
@@ -32,18 +10,6 @@ fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
 	proc.stderr_behavior = .Ignore;
 	_ = try proc.spawn();
 	_ = try proc.wait();
-}
-
-fn send(value: *const Waybar) !void {
-	const stdout_file = std.io.getStdOut().writer();
-	var bw = std.io.bufferedWriter(stdout_file);
-	const stdout = bw.writer();
-	if (value == &Waybar.inactive) {
-		try stdout.writeAll(&json_inactive);
-	} else {
-		try std.json.stringify(value, .{ .escape_unicode = true }, stdout);
-	}
-	try bw.flush();
 }
 
 fn getState(home: std.fs.Dir) !bool {
@@ -99,7 +65,7 @@ pub fn main() !void {
 	}
 
 	if (!(getState(home) catch true)) {
-		return send(&.inactive);
+		return Waybar.inactive.send();
 	}
 	const kelvin: u15 = Schedule.init(mem, home).at(blk: {
 		const c = @cImport({ @cInclude("time.h"); });
@@ -133,5 +99,5 @@ pub fn main() !void {
 	var tip_buf: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(
 		&tip_buf, "Blue light filter: {}K ({s})", .{ kelvin, class });
-	return send(&.{ .text = text, .class = class, .tooltip = tooltip });
+	return (Waybar{ .text = text, .class = class, .tooltip = tooltip }).send();
 }
