@@ -31,7 +31,10 @@ Options include:
 - `"night": int` - the color temperature for night time.
 - `"dawn": [float, float]` - the time interval where night turns to day.
 - `"dusk": [float, float]` - the time interval where day turns to night.
-- `"logarithmic": bool` - whether to use logarithmic scaling.
+- `"scale": "enum"` - which scaling method to use.
+  - enum values:
+    - `"linear"`
+    - `"logarithmic"`
 
 Time intervals use the hours of a 24-hour clock. For example, `[4, 6]` means the interval occurs between 4am and 6am, while `[16, 18]` would occur between 4pm and 6pm.
 

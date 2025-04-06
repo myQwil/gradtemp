@@ -4,12 +4,17 @@ const std = @import("std");
 dawn: Slope,
 dusk: Slope,
 
+const Scale = enum {
+	linear,
+	logarithmic,
+};
+
 const Config = struct {
 	day: u15 = 6500,
 	night: u15 = 1900,
 	dawn: [2]f32 = .{ 4, 6 },
 	dusk: [2]f32 = .{ 19, 21 },
-	logarithmic: bool = false,
+	scale: Scale = .linear,
 
 	inline fn init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
 		const file = try home.openFile(
@@ -26,31 +31,33 @@ const Config = struct {
 
 const Slope = struct {
 	time: Range(f32),
+	scale: *const fn(*const Slope, f32) f32,
 	m: f32,
-	b: u15,
-	log: bool,
+	b: f32,
 
 	fn Range(T: type) type { return struct {
 		lo: T,
 		hi: T,
 	};}
 
-	fn init(hour: Range(f32), kelvin: Range(u15), log: bool) Slope {
+	fn init(hour: Range(f32), kelvin: Range(u15), scale: Scale) Slope {
 		const time: Range(f32) = .{
 			.lo = hour.lo,
 			.hi = if (hour.hi < hour.lo) hour.hi + 24 else hour.hi,
 		};
 		const run: f32 = time.hi - time.lo;
 		if (run == 0) {
-			return .{ .time = time, .m = 0, .b = kelvin.hi, .log = false };
+			return .{ .time = time, .scale = &lin, .m = 0, .b = @floatFromInt(kelvin.hi) };
 		} else {
 			const hi: f32 = @floatFromInt(kelvin.hi);
 			const lo: f32 = @floatFromInt(kelvin.lo);
-			return .{
-				.time = time,
-				.m = if (log) @log2(hi / lo) / run else (hi - lo) / run,
-				.b = kelvin.lo,
-				.log = log,
+			return switch (scale) {
+				.linear => .{
+					.time = time, .scale = &lin, .b = lo, .m = (hi - lo) / run,
+				},
+				.logarithmic => .{
+					.time = time, .scale = &log, .b = lo, .m = @log2(hi / lo) / run,
+				},
 			};
 		}
 	}
@@ -58,9 +65,15 @@ const Slope = struct {
 	fn at(self: *const Slope, hour: f32) u15 {
 		const t = &self.time;
 		const x: f32 = @min(if (hour < t.lo) hour + 24 else hour, t.hi) - t.lo;
-		const b: f32 = @floatFromInt(self.b);
-		return @intFromFloat(@round(
-			if (self.log) @exp2(self.m * x) * b else self.m * x + b));
+		return @intFromFloat(@round(self.scale(self, x)));
+	}
+
+	fn lin(self: *const Slope, x: f32) f32 {
+		return self.m * x + self.b;
+	}
+
+	fn log(self: *const Slope, x: f32) f32 {
+		return @exp2(self.m * x) * self.b;
 	}
 };
 
@@ -70,12 +83,12 @@ pub fn init(mem: std.mem.Allocator, home: std.fs.Dir) Schedule {
 		.dawn = .init(
 			.{ .lo = cfg.dawn[0], .hi = cfg.dawn[1] },
 			.{ .lo = cfg.night, .hi = cfg.day },
-			cfg.logarithmic,
+			cfg.scale,
 		),
 		.dusk = .init(
 			.{ .lo = cfg.dusk[0], .hi = cfg.dusk[1] },
 			.{ .lo = cfg.day, .hi = cfg.night },
-			cfg.logarithmic,
+			cfg.scale,
 		),
 	};
 }

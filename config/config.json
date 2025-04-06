@@ -3,5 +3,5 @@
 	"night": 1900,
 	"dawn": [4, 6],
 	"dusk": [19, 21],
-	"logarithmic": false
+	"scale": "linear"
 }
