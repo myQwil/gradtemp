@@ -3,12 +3,12 @@
 	"night": 1900,
 	"dawn": {
 		"start": 4,
-		"end": 6,
-		"scale": "decay"
+		"end": 7,
+		"scale": "grow"
 	},
 	"dusk": {
-		"start": 19,
+		"start": 18,
 		"end": 21,
-		"scale": "grow"
+		"scale": "decay"
 	}
 }

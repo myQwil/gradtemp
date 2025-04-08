@@ -4,8 +4,8 @@ const std = @import("std");
 
 day: u15 = 6500,
 night: u15 = 1900,
-dawn: SlopeJson = .{ .start = 4, .end = 6, .scale = .grow },
-dusk: SlopeJson = .{ .start = 19, .end = 21, .scale = .decay },
+dawn: SlopeJson = .{ .start = 4, .end = 7, .scale = .grow },
+dusk: SlopeJson = .{ .start = 18, .end = 21, .scale = .decay },
 
 const SlopeJson = struct {
 	start: f32,
