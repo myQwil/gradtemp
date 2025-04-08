@@ -1,6 +1,7 @@
 const std = @import("std");
+const Slope = @import("Slope.zig");
+const Config = @import("Config.zig");
 const Waybar = @import("Waybar.zig");
-const Schedule = @import("Schedule.zig");
 
 const state = ".cache/gradtemp/state";
 fn getState(home: std.fs.Dir) !bool {
@@ -37,7 +38,13 @@ pub fn main() !void {
 			// Arg specifies how many segments each hour is divided into.
 			const n: u11 = @as(u11, seg) * 24;
 			const div: f32 = @floatFromInt(seg);
-			const schedule: Schedule = .init(mem, home);
+
+			const cfg: Config = .init(mem, home);
+			const dawn: Slope = cfg.getDawn();
+			const dusk: Slope = cfg.getDusk();
+			const dn = &dawn.time;
+			const dk = &dusk.time;
+
 			std.debug.print("\n", .{});
 			for (0..n) |i| {
 				const h: f32 = @as(f32, @floatFromInt(i)) / div;
@@ -45,7 +52,10 @@ pub fn main() !void {
 				std.debug.print("{:0>2}:{:0>2} - {}\n", .{
 					@as(u5, @intFromFloat(ih)),
 					@as(u6, @intFromFloat((h - ih) * 60)),
-					schedule.at(h),
+					if (dn.lo < dk.lo)
+						if (dn.lo <= h and h < dk.lo) dawn.at(h) else dusk.at(h)
+					else
+						if (dk.lo <= h and h < dn.lo) dusk.at(h) else dawn.at(h),
 				});
 			}
 		} else |_| {
@@ -69,7 +79,7 @@ pub fn main() !void {
 	if (!(getState(home) catch true)) {
 		return Waybar.inactive.send();
 	}
-	const kelvin: u15 = Schedule.init(mem, home).at(blk: {
+	const kelvin: u15 = Config.init(mem, home).at(blk: {
 		const c = @cImport({ @cInclude("time.h"); });
 		var time: c.time_t = @intCast(std.time.timestamp());
 		const local: *c.struct_tm = c.localtime(&time)
