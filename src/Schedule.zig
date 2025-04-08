@@ -6,15 +6,21 @@ dusk: Slope,
 
 const Scale = enum {
 	linear,
-	logarithmic,
+	grow,
+	decay,
 };
 
 const Config = struct {
 	day: u15 = 6500,
 	night: u15 = 1900,
-	dawn: [2]f32 = .{ 4, 6 },
-	dusk: [2]f32 = .{ 19, 21 },
-	scale: Scale = .linear,
+	dawn: SlopeConfig = .{ .start = 4, .end = 6, .scale = .grow },
+	dusk: SlopeConfig = .{ .start = 19, .end = 21, .scale = .decay },
+
+	const SlopeConfig = struct {
+		start: f32,
+		end: f32,
+		scale: Scale,
+	};
 
 	inline fn init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
 		const data = try home.readFileAlloc(mem, ".config/gradtemp/config.json", 1024);
@@ -27,9 +33,9 @@ const Config = struct {
 
 const Slope = struct {
 	time: Range(f32),
+	k: Range(f32),
 	scale: *const fn(*const Slope, f32) f32,
 	m: f32,
-	b: f32,
 
 	fn Range(T: type) type { return struct {
 		lo: T,
@@ -41,19 +47,24 @@ const Slope = struct {
 			.lo = hour.lo,
 			.hi = if (hour.hi < hour.lo) hour.hi + 24 else hour.hi,
 		};
+		const k: Range(f32) = .{
+			.lo = @floatFromInt(kelvin.lo),
+			.hi = @floatFromInt(kelvin.hi),
+		};
 		const run: f32 = time.hi - time.lo;
 		if (run == 0) {
-			return .{ .time = time, .scale = &lin, .m = 0, .b = @floatFromInt(kelvin.hi) };
+			return .{ .time = time, .k = k, .scale = &lin, .m = 0 };
 		} else {
-			const hi: f32 = @floatFromInt(kelvin.hi);
-			const lo: f32 = @floatFromInt(kelvin.lo);
 			return switch (scale) {
 				.linear => .{
-					.time = time, .scale = &lin, .b = lo, .m = (hi - lo) / run,
+					.time = time, .k = k, .scale = &lin, .m = (k.hi - k.lo) / run,
 				},
-				.logarithmic => .{
-					.time = time, .scale = &log, .b = lo, .m = @log2(hi / lo) / run,
+				.grow => .{
+					.time = time, .k = k, .scale = &grow, .m = @log2(k.hi / k.lo) / run,
 				},
+				.decay => .{
+					.time = time, .k = k, .scale = &decay, .m = @log2(k.hi / k.lo) / run,
+				}
 			};
 		}
 	}
@@ -65,26 +76,33 @@ const Slope = struct {
 	}
 
 	fn lin(self: *const Slope, x: f32) f32 {
-		return self.m * x + self.b;
+		return self.m * x + self.k.lo;
 	}
 
-	fn log(self: *const Slope, x: f32) f32 {
-		return @exp2(self.m * x) * self.b;
+	fn grow(self: *const Slope, x: f32) f32 {
+		return @exp2(self.m * x) * self.k.lo;
+	}
+
+	fn decay(self: *const Slope, x: f32) f32 {
+		return -@exp2(-self.m * x) * self.k.hi + self.k.lo + self.k.hi;
 	}
 };
 
 pub fn init(mem: std.mem.Allocator, home: std.fs.Dir) Schedule {
-	const cfg: Config = Config.init(mem, home) catch .{};
+	const cfg: Config = Config.init(mem, home) catch |e| blk: {
+		std.debug.print("config.json: {s}\n", .{ @errorName(e) });
+		break :blk .{};
+	};
 	return .{
 		.dawn = .init(
-			.{ .lo = cfg.dawn[0], .hi = cfg.dawn[1] },
+			.{ .lo = cfg.dawn.start, .hi = cfg.dawn.end },
 			.{ .lo = cfg.night, .hi = cfg.day },
-			cfg.scale,
+			cfg.dawn.scale,
 		),
 		.dusk = .init(
-			.{ .lo = cfg.dusk[0], .hi = cfg.dusk[1] },
+			.{ .lo = cfg.dusk.start, .hi = cfg.dusk.end },
 			.{ .lo = cfg.day, .hi = cfg.night },
-			cfg.scale,
+			cfg.dusk.scale,
 		),
 	};
 }

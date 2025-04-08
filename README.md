@@ -27,14 +27,18 @@ The module can then be toggled on and off by clicking on it.
 gradtemp will look for a json config file at `~/config/gradtemp/config.json`
 
 Options include:
-- `"day": int` - the color temperature for day time.
-- `"night": int` - the color temperature for night time.
-- `"dawn": [float, float]` - the time interval where night turns to day.
-- `"dusk": [float, float]` - the time interval where day turns to night.
-- `"scale": "enum"` - which scaling method to use.
-  - enum values:
-    - `"linear"`
-    - `"logarithmic"`
+- `"day": int` - The color temperature for day time.
+- `"night": int` - The color temperature for night time.
+- `"dawn": {object}` - The time interval where night turns to day.
+- `"dusk": {object}` - The time interval where day turns to night.
+
+`"dawn"` and `"dusk"` are json objects with the following fields:
+- "`"start": float`" - The hour that the interval starts.
+- "`"end": float`" - The hour that the interval ends.
+- `"scale": "enum"` - Which scaling method to use. Possible values include:
+  - `"linear"` - Linear scaling.
+  - `"grow"` - Growing exponential scaling (day turns to night faster).
+  - `"decay"` - Decaying exponential scaling (night turns to day faster).
 
 Time intervals use the hours of a 24-hour clock. For example, `[4, 6]` means the interval occurs between 4am and 6am, while `[16, 18]` would occur between 4pm and 6pm.
 
