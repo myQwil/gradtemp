@@ -17,14 +17,10 @@ const Config = struct {
 	scale: Scale = .linear,
 
 	inline fn init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
-		const file = try home.openFile(
-			".config/gradtemp/config.json", .{ .mode = .read_only });
-		defer file.close();
-		const contents = try file.readToEndAlloc(mem, 1024);
-		defer mem.free(contents);
-		const parsed = try std.json.parseFromSlice(Config, mem, contents, .{});
+		const data = try home.readFileAlloc(mem, ".config/gradtemp/config.json", 1024);
+		defer mem.free(data);
+		const parsed = try std.json.parseFromSlice(Config, mem, data, .{});
 		defer parsed.deinit();
-
 		return parsed.value;
 	}
 };
