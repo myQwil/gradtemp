@@ -23,8 +23,8 @@ pub fn main() !void {
 	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
 	const mem = gpa.allocator();
 
-	var home = try std.fs.cwd().openDir(
-		std.posix.getenv("HOME") orelse return error.NoHomeEnv, .{});
+	var home = if (std.posix.getenv("HOME")) |env| std.fs.cwd().openDir(env, .{})
+		catch std.fs.cwd() else std.fs.cwd();
 	defer home.close();
 
 	const identity = 6500;
