@@ -70,6 +70,7 @@ pub fn main() !void {
 
 			try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
 			if (!on) {
+				// running this now avoids performing it on every update
 				try process(mem, &cmd_identity);
 			}
 		};
