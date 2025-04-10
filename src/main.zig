@@ -33,7 +33,7 @@ pub fn main() !void {
 	var args = std.process.args();
 	_ = args.skip();
 	if (args.next()) |arg| {
-		if (std.fmt.parseInt(u6, arg, 10)) |seg| {
+		return if (std.fmt.parseInt(u6, arg, 10)) |seg| {
 			// Print temperatures over a span of 24 hours.
 			// Arg specifies how many segments each hour is divided into.
 			const n: u11 = @as(u11, seg) * 24;
@@ -72,8 +72,7 @@ pub fn main() !void {
 			if (!on) {
 				try process(mem, &cmd_identity);
 			}
-		}
-		return;
+		};
 	}
 
 	if (!(getState(home) catch true)) {
