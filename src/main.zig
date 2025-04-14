@@ -91,10 +91,10 @@ pub fn main() !void {
 		break :blk hour + (minute / 60) + (second / (60 * 60));
 	});
 
-	var text_buf: [11]u8 = undefined;
-	const text = try std.fmt.bufPrint(&text_buf, "󰌵 {}", .{ kelvin });
+	var text_buf: [6]u8 = undefined;
+	const text = try std.fmt.bufPrint(&text_buf, "{}", .{ kelvin });
 	try process(mem, if (kelvin == identity) &cmd_identity
-		else &.{ "hyprctl", "hyprsunset", "temperature", text[5..] });
+		else &.{ "hyprctl", "hyprsunset", "temperature", text });
 
 	const class: []const u8 =
 		if      (kelvin >= 5500) "cool"
@@ -105,5 +105,10 @@ pub fn main() !void {
 	var tip_buf: [40]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(
 		&tip_buf, "Blue light filter: {}K ({s})", .{ kelvin, class });
-	return (Waybar{ .text = text, .class = class, .tooltip = tooltip }).send();
+	return (Waybar{
+		.text = text,
+		.class = class,
+		.tooltip = tooltip,
+		.percentage = 100,
+	}).send();
 }

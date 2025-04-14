@@ -1,7 +1,8 @@
 {
     "custom/colortemp": {
-        "format": "{}",
-        "interval": 60,
+        "format": "{icon} {text}",
+        "format-icons": ["󰌶", "󰌵"],
+        "interval": 30,
         "exec": "/path/to/gradtemp",
         "on-click": "/path/to/gradtemp tgl",
         "return-type": "json"
