@@ -3,9 +3,16 @@ A hyprsunset waybar module
 
 Works with hyprsunset's IPC feature via hyprctl to perform gradual transitions between color temperatures.
 
-It can either be called periodically with a systemd timer, or added to waybar as a custom module.
+## How to build
+Open this folder in a terminal and run the following command:
+```bash
+zig build --release=fast
+```
 
-## systemd timer
+## How to use
+The executable is meant to be called periodically with a systemd timer or a custom waybar module.
+
+### systemd timer
 Move the files in the `systemd` folder to `~/.config/systemd/user` and change the `ExecStart` path in `gradtemp.service` to match the location of the executable.
 
 Enable and start the timer with:
@@ -14,17 +21,22 @@ systemctl --user enable gradtemp.timer
 systemctl --user start gradtemp.timer
 ```
 
-## waybar module
-Paste the snippets in the `waybar` folder into the files with the same name at `~/.config/waybar` and change the `exec` and `on-click` fields to match the locations of `gradtemp` and `toggle`. Then add `"custom/colortemp",` to one of the module lists.
+### waybar module
+Paste the snippets in the `waybar` folder into the files with the same name at `~/.config/waybar` and change the `exec` and `on-click` fields to match the location of the executable. Then add `"custom/colortemp",` to one of the module lists.
 
 To see the module, restart waybar with:
 ```bash
 killall waybar; waybar & disown
 ```
-The module can then be toggled on and off by clicking on it.
+The module can be toggled on and off by clicking on it.
+
+## Args
+The executable accepts the following arguments:
+- `<integer>`: Prints out the temperatures over a 24-hour period, with the integer specifying the number of segments to divide each hour into.
+- `<non-integer>`: Toggles the enabled/disabled state, which is stored in `~/.cache/gradtemp/state`.
 
 ## Config options
-gradtemp will look for a json config file at `~/config/gradtemp/config.json`
+gradtemp will look for a json config file at `~/.config/gradtemp/config.json`
 
 Options include:
 - `"day": int` - The color temperature for day time.
