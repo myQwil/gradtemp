@@ -13,7 +13,7 @@ const SlopeJson = struct {
 	scale: Slope.Scale,
 };
 
-inline fn _init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
+inline fn tryInit(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
 	const data = try home.readFileAlloc(mem, ".config/gradtemp/config.json", 1024);
 	defer mem.free(data);
 	const parsed = std.json.parseFromSlice(Config, mem, data, .{}) catch |e| {
@@ -25,7 +25,7 @@ inline fn _init(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
 }
 
 pub fn init(mem: std.mem.Allocator, home: std.fs.Dir) Config {
-	return _init(mem, home) catch .{};
+	return tryInit(mem, home) catch .{};
 }
 
 pub fn getDawn(self: *const Config) Slope {
