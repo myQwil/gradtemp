@@ -51,7 +51,7 @@ pub fn main() !void {
 				const ih: f32 = @trunc(h);
 				std.debug.print("{:0>2}:{:0>2} - {}\n", .{
 					@as(u5, @intFromFloat(ih)),
-					@as(u6, @intFromFloat((h - ih) * 60)),
+					@as(u6, @intFromFloat(@round((h - ih) * 60))),
 					if (dn.lo < dk.lo)
 						if (dn.lo <= h and h < dk.lo) dawn.at(h) else dusk.at(h)
 					else
