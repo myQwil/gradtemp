@@ -3,11 +3,15 @@ const Slope = @import("Slope.zig");
 const Config = @import("Config.zig");
 const Waybar = @import("Waybar.zig");
 
+var buf: [256]u8 = undefined;
+
 const state = ".cache/gradtemp/state";
 fn getState(home: std.fs.Dir) !bool {
 	const file = try home.openFile(state, .{ .mode = .read_only });
 	defer file.close();
-	return (try file.reader().readByte() == '1');
+	var reader = file.reader(&buf);
+	try reader.interface.fill(1);
+	return (buf[0] == '1');
 }
 
 fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
@@ -68,7 +72,8 @@ pub fn main() !void {
 				catch try home.createFile(state, .{});
 			defer file.close();
 
-			try file.writer().writeByte(@as(u8, @intFromBool(on)) + '0');
+			buf[0] = @as(u8, @intFromBool(on)) + '0';
+			try file.writeAll(buf[0..1]);
 			if (!on) {
 				// running this now avoids performing it on every update
 				try process(mem, &cmd_identity);

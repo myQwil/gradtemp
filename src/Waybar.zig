@@ -13,25 +13,26 @@ pub const inactive: Waybar = .{
 	.percentage = 0,
 };
 
-const json_inactive = blk: {
-	var buf: [128]u8 = undefined;
-	var stream = std.io.fixedBufferStream(&buf);
-	std.json.stringify(&inactive, .{}, stream.writer()) catch |e| {
-		@compileError("Failed to stringify Waybar.inactive: " ++ @errorName(e));
-	};
-	var sized_buf: [stream.getWritten().len]u8 = undefined;
-	@memcpy(&sized_buf, buf[0..sized_buf.len]);
-	break :blk sized_buf;
-};
+var buf: [256]u8 = undefined;
+var stdout = std.fs.File.stdout().writer(&buf);
+var json = std.json.Stringify{ .writer = &stdout.interface };
+
+// const json_inactive = blk: {
+// json.write(inactive) catch |e| {
+// @compileError("Failed to stringify Waybar.inactive: " ++ @errorName(e));
+// };
+// var sized_buf: [stdout.pos]u8 = undefined;
+// @memcpy(&sized_buf, buf[0..sized_buf.len]);
+// break :blk sized_buf;
+// };
+const json_inactive = "{\"text\":\"6500\",\"class\":\"cool\","
+	++ "\"tooltip\":\"Blue light filter: 6500K (off)\",\"percentage\":0}";
 
 pub fn send(value: *const Waybar) !void {
-	const stdout_file = std.io.getStdOut().writer();
-	var bw = std.io.bufferedWriter(stdout_file);
-	const stdout = bw.writer();
 	if (value == &inactive) {
-		try stdout.writeAll(&json_inactive);
+		try stdout.interface.writeAll(json_inactive);
 	} else {
-		try std.json.stringify(value, .{}, stdout);
+		try json.write(value);
 	}
-	try bw.flush();
+	try json.writer.flush();
 }
