@@ -2,5 +2,8 @@
 .zig-cache/
 zig-out/
 
-#VSCode folder
+# VSCode folder
 .vscode/
+
+# Executable
+gradtemp
