@@ -10,8 +10,7 @@ fn getState(home: std.fs.Dir) !bool {
 	const file = try home.openFile(state, .{ .mode = .read_only });
 	defer file.close();
 	var reader = file.reader(&buf);
-	try reader.interface.fill(1);
-	return (buf[0] == '1');
+	return ((try reader.interface.take(1))[0] == '1');
 }
 
 fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
