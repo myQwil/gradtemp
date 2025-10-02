@@ -4,8 +4,8 @@ const Config = @import("Config.zig");
 const Waybar = @import("Waybar.zig");
 
 var buf: [256]u8 = undefined;
-
 const state = ".cache/gradtemp/state";
+
 fn getState(home: std.fs.Dir) !bool {
 	const file = try home.openFile(state, .{ .mode = .read_only });
 	defer file.close();
@@ -31,7 +31,7 @@ pub fn main() !void {
 	defer home.close();
 
 	const identity = 6500;
-	const cmd_identity: [3][]const u8 = .{ "hyprctl", "hyprsunset", "identity" };
+	const cmd_identity = [_][]const u8{ "hyprctl", "hyprsunset", "identity" };
 
 	var args = std.process.args();
 	_ = args.skip();
@@ -97,8 +97,11 @@ pub fn main() !void {
 
 	var text_buf: [6]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "{}", .{ kelvin });
-	try process(mem, if (kelvin == identity) &cmd_identity
-		else &.{ "hyprctl", "hyprsunset", "temperature", text });
+
+	try process(mem, if (kelvin == identity)
+		&cmd_identity
+	else
+		&.{ "hyprctl", "hyprsunset", "temperature", text });
 
 	const class: []const u8 =
 		if      (kelvin >= 5500) "cool"
