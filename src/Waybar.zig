@@ -21,7 +21,7 @@ const json_inactive = blk: {
 	var b: [256]u8 = undefined;
 	var s = std.fs.File.stdout().writer(&b);
 	var j = std.json.Stringify{ .writer = &s.interface };
-	j.write(inactive) catch {};
+	j.write(inactive) catch @compileError("Couldn't stringify json_inactive");
 	var sized_buf: [s.interface.end]u8 = undefined;
 	@memcpy(&sized_buf, b[0..sized_buf.len]);
 	break :blk sized_buf;
