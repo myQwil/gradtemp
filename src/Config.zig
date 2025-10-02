@@ -2,6 +2,8 @@ const Config = @This();
 const Slope = @import("Slope.zig");
 const std = @import("std");
 
+const Parsed = std.json.Parsed(Config);
+
 day: u15 = 6500,
 night: u15 = 1900,
 dawn: SlopeJson = .{ .start = 4, .end = 7, .scale = .grow },
@@ -16,7 +18,7 @@ const SlopeJson = struct {
 inline fn tryInit(mem: std.mem.Allocator, home: std.fs.Dir) !Config {
 	const data = try home.readFileAlloc(mem, ".config/gradtemp/config.json", 1024);
 	defer mem.free(data);
-	const parsed = std.json.parseFromSlice(Config, mem, data, .{}) catch |e| {
+	const parsed: Parsed = std.json.parseFromSlice(Config, mem, data, .{}) catch |e| {
 		std.debug.print("config.json: {s}\n", .{ @errorName(e) });
 		return e;
 	};
