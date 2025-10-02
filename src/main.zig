@@ -106,9 +106,8 @@ pub fn main() !void {
 		else if (kelvin >= 2500) "warm"
 		else                     "candle";
 
-	var tip_buf: [40]u8 = undefined;
-	const tooltip = try std.fmt.bufPrint(
-		&tip_buf, "Blue light filter: {}K ({s})", .{ kelvin, class });
+	const fmt = "Blue light filter: {}K ({s})";
+	const tooltip = try std.fmt.bufPrint(&buf, fmt, .{ kelvin, class });
 	return (Waybar{
 		.text = text,
 		.class = class,
