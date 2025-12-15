@@ -23,7 +23,7 @@ const json_inactive = blk: {
 	var j = std.json.Stringify{ .writer = &s.interface };
 	j.write(inactive) catch @compileError("Couldn't stringify json_inactive");
 	var sized_buf: [s.interface.end]u8 = undefined;
-	@memcpy(&sized_buf, b[0..sized_buf.len]);
+	@memcpy(&sized_buf, s.interface.buffered());
 	break :blk sized_buf;
 };
 
