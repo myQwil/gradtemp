@@ -31,7 +31,7 @@ pub fn main() !void {
 	defer home.close();
 
 	const identity = 6500;
-	const cmd_identity = [_][]const u8{ "hyprctl", "hyprsunset", "identity" };
+	const cmd_identity = [_][]const u8{ "hyprctl", "hyprsunset", "identity", "true" };
 
 	var args = std.process.args();
 	_ = args.skip();
