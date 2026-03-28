@@ -13,13 +13,10 @@ pub const inactive: Waybar = .{
 	.percentage = 0,
 };
 
-var buf: [256]u8 = undefined;
-var stdout = std.fs.File.stdout().writer(&buf);
-var json = std.json.Stringify{ .writer = &stdout.interface };
-
 const json_inactive = blk: {
+	const io = std.Io.Threaded.global_single_threaded.io();
 	var b: [256]u8 = undefined;
-	var s = std.fs.File.stdout().writer(&b);
+	var s = std.Io.File.stdout().writer(io, &b);
 	var j = std.json.Stringify{ .writer = &s.interface };
 	j.write(inactive) catch @compileError("Couldn't stringify json_inactive");
 	var sized_buf: [s.interface.end]u8 = undefined;
@@ -27,7 +24,11 @@ const json_inactive = blk: {
 	break :blk sized_buf;
 };
 
-pub fn send(value: *const Waybar) !void {
+pub fn send(value: *const Waybar, io: std.Io) !void {
+	var buf: [256]u8 = undefined;
+	var stdout = std.Io.File.stdout().writer(io, &buf);
+	var json = std.json.Stringify{ .writer = &stdout.interface };
+
 	if (value == &inactive) {
 		try stdout.interface.writeAll(&json_inactive);
 	} else {

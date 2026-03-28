@@ -3,37 +3,40 @@ const Slope = @import("Slope.zig");
 const Config = @import("Config.zig");
 const Waybar = @import("Waybar.zig");
 
-var buf: [256]u8 = undefined;
 const state = ".cache/gradtemp/state";
 
-fn getState(home: std.fs.Dir) !bool {
-	const file = try home.openFile(state, .{ .mode = .read_only });
-	defer file.close();
-	var reader = file.reader(&buf);
+fn getState(io: std.Io, home: std.Io.Dir) !bool {
+	const file = try home.openFile(io, state, .{ .mode = .read_only });
+	defer file.close(io);
+	var buf: [16]u8 = undefined;
+	var reader = file.reader(io, &buf);
 	return ((try reader.interface.take(1))[0] == '1');
 }
 
-fn process(mem: std.mem.Allocator, cmd: []const []const u8) !void {
-	var proc = std.process.Child.init(cmd, mem);
-	proc.stdout_behavior = .Ignore;
-	proc.stderr_behavior = .Ignore;
-	_ = try proc.spawn();
-	_ = try proc.wait();
+fn process(io: std.Io, cmd: []const []const u8) !void {
+	var child = try std.process.spawn(io, .{
+		.argv = cmd,
+		.stdin = .ignore,
+		.stdout = .ignore,
+		.stderr = .ignore,
+	});
+	_ = try child.wait(io);
 }
 
-pub fn main() !void {
-	var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-	defer if (gpa.deinit() == .leak) std.debug.print("Memory leaks detected!\n", .{});
-	const mem = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+	const io = init.io;
+	const gpa = init.gpa;
+	const environ_map = init.environ_map;
 
-	var home = if (std.posix.getenv("HOME")) |env| std.fs.cwd().openDir(env, .{})
-		catch std.fs.cwd() else std.fs.cwd();
-	defer home.close();
+	var home = if (environ_map.get("HOME")) |env|
+		std.Io.Dir.cwd().openDir(io, env, .{}) catch std.Io.Dir.cwd()
+	else std.Io.Dir.cwd();
+	defer home.close(io);
 
 	const identity = 6500;
 	const cmd_identity = [_][]const u8{ "hyprctl", "hyprsunset", "identity", "true" };
 
-	var args = std.process.args();
+	var args = init.minimal.args.iterate();
 	_ = args.skip();
 	if (args.next()) |arg| {
 		return if (std.fmt.parseInt(u6, arg, 10)) |seg| {
@@ -42,7 +45,7 @@ pub fn main() !void {
 			const n: u11 = @as(u11, seg) * 24;
 			const div: f32 = @floatFromInt(seg);
 
-			const cfg: Config = .init(mem, home);
+			const cfg: Config = .init(io, gpa, home);
 			const dawn: Slope = cfg.getDawn();
 			const dusk: Slope = cfg.getDusk();
 			const dn = &dawn.time;
@@ -64,28 +67,41 @@ pub fn main() !void {
 		} else |_| {
 			// Toggle the on/off state
 			const path = state[0..state.len - 6];
-			home.access(path, .{}) catch try home.makePath(path);
-			const on: bool = !(getState(home) catch true);
+			home.access(io, path, .{}) catch try home.createDirPath(io, path);
+			const on: bool = !(getState(io, home) catch true);
 
-			const file = home.openFile(state, .{ .mode = .write_only })
-				catch try home.createFile(state, .{});
-			defer file.close();
+			const file = home.openFile(io, state, .{ .mode = .write_only })
+				catch try home.createFile(io, state, .{});
+			defer file.close(io);
 
-			buf[0] = @as(u8, @intFromBool(on)) + '0';
-			try file.writeAll(buf[0..1]);
+			var buf: [16]u8 = undefined;
+			var w = file.writer(io, &buf);
+			try w.interface.writeByte(@as(u8, @intFromBool(on)) + '0');
+			try w.flush();
 			if (!on) {
 				// running this now avoids performing it on every update
-				try process(mem, &cmd_identity);
+				try process(io, &cmd_identity);
 			}
 		};
 	}
 
-	if (!(getState(home) catch true)) {
-		return Waybar.inactive.send();
+	if (!(getState(io, home) catch true)) {
+		return Waybar.inactive.send(io);
 	}
-	const kelvin: u15 = Config.init(mem, home).at(blk: {
+	const kelvin: u15 = Config.init(io, gpa, home).at(blk: {
+		const now: std.Io.Timestamp = .now(io, .real);
+		const sec: i96 = @divTrunc(now.nanoseconds, std.time.ns_per_s);
+
+		// Some idea of how it'd be done if zig had timezone support
+		// const ep = std.time.epoch;
+		// const esec: ep.EpochSeconds = .{ .secs = @intCast(sec) };
+		// const dsec: ep.DaySeconds = esec.getDaySeconds();
+		// const hour: f32 = @floatFromInt(dsec.getHoursIntoDay());
+		// const minute: f32 = @floatFromInt(dsec.getMinutesIntoHour());
+		// const second: f32 = @floatFromInt(dsec.getSecondsIntoMinute());
+
 		const c = @cImport({ @cInclude("time.h"); });
-		var time: c.time_t = @intCast(std.time.timestamp());
+		var time: c.time_t = @intCast(sec);
 		const local: *c.struct_tm = c.localtime(&time)
 			orelse return error.TimeConversionFailed;
 
@@ -98,7 +114,7 @@ pub fn main() !void {
 	var text_buf: [6]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "{}", .{ kelvin });
 
-	try process(mem, if (kelvin == identity)
+	try process(io, if (kelvin == identity)
 		&cmd_identity
 	else
 		&.{ "hyprctl", "hyprsunset", "temperature", text });
@@ -110,11 +126,12 @@ pub fn main() !void {
 		else                     "candle";
 
 	const fmt = "Blue light filter: {}K ({s})";
+	var buf: [256]u8 = undefined;
 	const tooltip = try std.fmt.bufPrint(&buf, fmt, .{ kelvin, class });
 	return (Waybar{
 		.text = text,
 		.class = class,
 		.tooltip = tooltip,
 		.percentage = 100,
-	}).send();
+	}).send(io);
 }
