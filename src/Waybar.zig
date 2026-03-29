@@ -1,5 +1,6 @@
 const Waybar = @This();
 const std = @import("std");
+const Io = std.Io;
 
 text: []const u8,
 class: []const u8,
@@ -14,9 +15,9 @@ pub const inactive: Waybar = .{
 };
 
 const json_inactive = blk: {
-	const io = std.Io.Threaded.global_single_threaded.io();
+	const io = Io.Threaded.global_single_threaded.io();
 	var b: [256]u8 = undefined;
-	var s = std.Io.File.stdout().writer(io, &b);
+	var s = Io.File.stdout().writer(io, &b);
 	var j = std.json.Stringify{ .writer = &s.interface };
 	j.write(inactive) catch @compileError("Couldn't stringify json_inactive");
 	var sized_buf: [s.interface.end]u8 = undefined;
@@ -24,9 +25,9 @@ const json_inactive = blk: {
 	break :blk sized_buf;
 };
 
-pub fn send(value: *const Waybar, io: std.Io) !void {
+pub fn send(value: *const Waybar, io: Io) !void {
 	var buf: [256]u8 = undefined;
-	var stdout = std.Io.File.stdout().writer(io, &buf);
+	var stdout = Io.File.stdout().writer(io, &buf);
 	var json = std.json.Stringify{ .writer = &stdout.interface };
 
 	if (value == &inactive) {

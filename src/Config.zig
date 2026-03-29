@@ -1,6 +1,7 @@
 const Config = @This();
 const Slope = @import("Slope.zig");
 const std = @import("std");
+const Io = std.Io;
 
 const Parsed = std.json.Parsed(Config);
 
@@ -15,7 +16,7 @@ const SlopeJson = struct {
 	scale: Slope.Scale,
 };
 
-inline fn tryInit(io: std.Io, mem: std.mem.Allocator, home: std.Io.Dir) !Config {
+inline fn tryInit(io: Io, mem: std.mem.Allocator, home: Io.Dir) !Config {
 	const data = try home.readFileAlloc(
 		io, ".config/gradtemp/config.json", mem, .limited(1024));
 	defer mem.free(data);
@@ -27,7 +28,7 @@ inline fn tryInit(io: std.Io, mem: std.mem.Allocator, home: std.Io.Dir) !Config 
 	return parsed.value;
 }
 
-pub fn init(io: std.Io, mem: std.mem.Allocator, home: std.Io.Dir) Config {
+pub fn init(io: Io, mem: std.mem.Allocator, home: Io.Dir) Config {
 	return tryInit(io, mem, home) catch .{};
 }
 

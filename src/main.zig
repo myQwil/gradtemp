@@ -2,10 +2,11 @@ const std = @import("std");
 const Slope = @import("Slope.zig");
 const Config = @import("Config.zig");
 const Waybar = @import("Waybar.zig");
+const Io = std.Io;
 
 const state = ".cache/gradtemp/state";
 
-fn getState(io: std.Io, home: std.Io.Dir) !bool {
+fn getState(io: Io, home: Io.Dir) !bool {
 	const file = try home.openFile(io, state, .{ .mode = .read_only });
 	defer file.close(io);
 	var buf: [16]u8 = undefined;
@@ -13,7 +14,7 @@ fn getState(io: std.Io, home: std.Io.Dir) !bool {
 	return ((try reader.interface.take(1))[0] == '1');
 }
 
-fn process(io: std.Io, cmd: []const []const u8) !void {
+fn run(io: Io, cmd: []const []const u8) !void {
 	var child = try std.process.spawn(io, .{
 		.argv = cmd,
 		.stdin = .ignore,
@@ -29,8 +30,8 @@ pub fn main(init: std.process.Init) !void {
 	const environ_map = init.environ_map;
 
 	var home = if (environ_map.get("HOME")) |env|
-		std.Io.Dir.cwd().openDir(io, env, .{}) catch std.Io.Dir.cwd()
-	else std.Io.Dir.cwd();
+		Io.Dir.cwd().openDir(io, env, .{}) catch Io.Dir.cwd()
+	else Io.Dir.cwd();
 	defer home.close(io);
 
 	const identity = 6500;
@@ -80,7 +81,7 @@ pub fn main(init: std.process.Init) !void {
 			try w.flush();
 			if (!on) {
 				// running this now avoids performing it on every update
-				try process(io, &cmd_identity);
+				try run(io, &cmd_identity);
 			}
 		};
 	}
@@ -89,7 +90,7 @@ pub fn main(init: std.process.Init) !void {
 		return Waybar.inactive.send(io);
 	}
 	const kelvin: u15 = Config.init(io, gpa, home).at(blk: {
-		const now: std.Io.Timestamp = .now(io, .real);
+		const now: Io.Timestamp = .now(io, .real);
 		const sec: i96 = @divTrunc(now.nanoseconds, std.time.ns_per_s);
 
 		// Some idea of how it'd be done if zig had timezone support
@@ -114,10 +115,9 @@ pub fn main(init: std.process.Init) !void {
 	var text_buf: [6]u8 = undefined;
 	const text = try std.fmt.bufPrint(&text_buf, "{}", .{ kelvin });
 
-	try process(io, if (kelvin == identity)
+	try run(io, if (kelvin == identity)
 		&cmd_identity
-	else
-		&.{ "hyprctl", "hyprsunset", "temperature", text });
+	else &.{ "hyprctl", "hyprsunset", "temperature", text });
 
 	const class: []const u8 =
 		if      (kelvin >= 5500) "cool"
